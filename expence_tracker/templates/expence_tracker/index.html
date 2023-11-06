@@ -1,0 +1,209 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Daily Expence Tracker</title>
+    <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet" />
+    <style>
+      .card {
+          border: 1px solid #e9e9e9;
+      }
+
+      .expence-list{
+        height: 250px;
+        overflow-y: auto;
+      }
+
+
+    </style>
+  </head>
+  <body>
+    {% if msg %}
+    <div class="alert alert-info" role="alert">
+      {{ msg }}
+    </div>
+    {% endif %}
+    <div class="card container mt-3 p-2">
+      <h2 class="mx-2 text-black-50">Daily Expence Tracker</h2>
+      <div class="bg-warning-subtle card jus px-5 py-2">
+          <div class="row  align-items-center">
+            <div class="col-sm-8">
+                <h5>Extra Expence Amount : ₹ {{ expence_master.current_expence_amount }}.00 </h5>
+                <div class="row"></div>
+                <div class="col-sm-12">
+                  <div class="row">
+                    <div class="col-sm-4">
+                      <p> Limit Per Day : ₹ {{ expence_master.expence_limit_per_day }}.00 </p>
+                    </div>
+                    <div class="col-sm-4">
+                      <p> Monthly Exp. : ₹ {{ expence_master.expence_limit_per_month }}.00 </p>
+                    </div>
+                    <div class="col-sm-4">
+                      <p> Reward Amt. : ₹ {{ expence_master.reward_price }}.00 </p>
+                    </div>
+                </div>
+                </div>
+            </div>
+            <div class="col-sm-4 text-right d-flex">
+              <button class="btn btn-secondary mx-1" data-bs-toggle="modal" data-bs-target="#exampleModal"> Add Expence </button>
+              <a href="{% url 'calculate_expence_reward' %}" class="btn btn-primary mx-1"> Cal. Expence </a>
+            </div> 
+            </div>
+          </div>
+      </div>
+    </div>
+
+    <div class="container card mt-3">
+        <div class="row">
+            <div class="col-sm-8 p-2">
+                <div class="card p-2">
+                    <div class="align-items-center d-flex justify-content-between">
+                        <h4> Expence Graph Summery</h4>
+                        <div>
+                            <form class="align-items-center d-flex justify-content-between">
+                              <div class="form-group mx-2">
+                                <lable> From : </lable>
+                                <input type="date" name="from_date" id="from_date" value="{{ from_date }}" onchange="this.form.submit()">
+                              </div>
+
+                              <div class="form-group  mx-2">
+                                <lable> To : </lable>
+                                <input type="date" name="to_date" id="to_date" value="{{ to_date }}"  onchange="this.form.submit()">
+                              </div>
+                          </form>
+                        </div>
+                    </div>
+                    <div class="p-2">
+                      <canvas id="myChartBar"></canvas> 
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-4 p-2">
+              <div class="card p-2 h-75">
+                <div class="d-flex align-items-center justify-content-between p-2">
+                    <h4> Expences </h4>
+                    <a href="{% url 'home' %}" class="text-decoration-none"> Reset Filter </a>
+                </div>
+                <div class="expence-list">
+                    <ul class="w-100 list-inline">
+                        {% if today_expences|length > 0 %}
+                            {% for expense in today_expences %}
+                              <li class="d-flex align-items-center justify-content-between bg-warning-subtle border-1 px-3 py-1-2 mt-1 border-bottom"> 
+                                  <div class="expence-name"> {{ expense.expence }} </div>
+                                  <div class="expence"> ₹ {{ expense.price }}.00 </div>
+                              </li>
+                            {% endfor %}
+                        {% else %}
+                              <li class="text-center bg-warning-subtle border-1 px-3 py-1-2 mt-1 border-bottom"> 
+                                  <div class="expence-name"> No records to show. </div>
+                              </li>
+                        {% endif %}
+                    </ul>
+              </div>
+            </div>
+            <div class="h-25 text-center">
+              <div class="card mt-2">
+              <h4 class="m-2"> Total Expences Till</h4>
+              <h2 class="px-2 mt-1 text-danger"> ₹ {{ total_expence }}.00 </h2>
+            </div>
+          </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form method="post" action="{% url 'add_new_expence' %}">
+            {% csrf_token %}
+            <div class="modal-header">
+              <h1 class="modal-title fs-5" id="exampleModalLabel">Add New Expence</h1>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              {{ form.as_p }}
+            </div>
+            <div class="modal-footer">
+              <button type="submit" class="btn btn-secondary">Save Expence</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <script src="{% static 'js/jquery.min.js' %}"></script>
+    <script src="{% static 'js/bootstrap.min.js' %}"></script>
+    <script src="{% static 'js/popper.min.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script> 
+    <script>
+
+      $(document).ready(function(){
+          let from_date = $('#from_date').val();
+          let to_date = $('#to_date').val();
+
+          get_data(from_date, to_date);
+      });
+
+      function get_data(from_date, to_date){
+        $.ajax({ 
+          method: "GET", 
+          url: '/bar_chart', 
+          data : { from_date, to_date },
+          success: function(data) { 
+            drawBarGraph(data, 'myChartBar'); 
+            console.log("drawing"); 
+          }, 
+          error: function(error_data) { 
+            console.log(error_data); 
+          } 
+        });
+      }
+
+        function drawBarGraph(data, id) { 
+          var labels = data.labels; 
+          var chartLabel = data.chartLabel; 
+          var chartdata = data.chartdata; 
+          var ctx = document.getElementById(id).getContext('2d'); 
+          var myChart = new Chart(ctx, { 
+            type: 'bar', 
+            data: { 
+              labels: labels, 
+              datasets: [{ 
+                label: chartLabel, 
+                data: chartdata, 
+                backgroundColor: [ 
+                  'rgba(255, 99, 132, 0.2)', 
+                  'rgba(54, 162, 235, 0.2)', 
+                  'rgba(255, 206, 86, 0.2)', 
+                  'rgba(75, 192, 192, 0.2)', 
+                  'rgba(153, 102, 255, 0.2)', 
+                  'rgba(255, 159, 64, 0.2)' 
+                ], 
+                borderColor: [ 
+                  'rgba(255, 99, 132, 1)', 
+                  'rgba(54, 162, 235, 1)', 
+                  'rgba(255, 206, 86, 1)', 
+                  'rgba(75, 192, 192, 1)', 
+                  'rgba(153, 102, 255, 1)', 
+                  'rgba(255, 159, 64, 1)' 
+                ], 
+                borderWidth: 1 
+              }] 
+            }, 
+            options: { 
+              scales: { 
+                yAxes: [{ 
+                  ticks: { 
+                    beginAtZero: true 
+                  } 
+                }] 
+              } 
+            } 
+          }); 
+        } 
+    </script>
+    
+  </body>
+</html>
